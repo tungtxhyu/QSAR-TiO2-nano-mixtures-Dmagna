@@ -1,118 +1,181 @@
-# Install below packages in the first time you run this code
-#install.packages(c("openxlsx","svDialogs","data.table","mlbench","caret", "shiny", "shinydashboard"), dependencies = TRUE)
+#############################################
+# Install packages if they are not installed yet
+# ipak function: install and load multiple R packages.
+# check to see if packages are installed. Install them if they are not, then load them into the R session.
+#ipak <- function(pkg){
+#  new.pkg <- pkg[!(pkg %in% installed.packages()[, "Package"])]
+#  if (length(new.pkg)) 
+#    install.packages(new.pkg, dependencies = TRUE)
+#  sapply(pkg, require, character.only = TRUE)
+#}
+#packages <- c("caret", "randomForest", "data.table", "shiny", "shinythemes", "shinydashboard")
+#ipak(packages)
 
-library(shiny)
-library(svDialogs) 
+# Load library
+library(caret) 
+library(randomForest)
 library(data.table)
-library(openxlsx)
-library(mlbench)
-library(caret)
-library(tools)
 library(shiny)
 library(shinythemes)
-library(DT)
-library(ggplot2)
-library(car)
-library(nortest)
-library(tseries)
-library(RcmdrMisc)
-library(lmtest)
 library(shinydashboard)
+library(shinyMobile)
+library(charpente)
+#############################################
 
-# Step 1: Read excel data file 
-QSARdata <- read.xlsx("dataset/Dmix.xlsx", sheet = 1, startRow = 1, colNames = TRUE,
-                      rowNames = FALSE, detectDates = FALSE, skipEmptyRows = TRUE,
-                      skipEmptyCols = TRUE, rows = NULL, cols = NULL, check.names = FALSE,
-                      namedRegion = NULL, na.strings = "NA", fillMergedCells = FALSE)
-Descriptors <- read.xlsx("dataset/Descriptors.xlsx", sheet = 1, startRow = 1, colNames = TRUE,
-                         rowNames = FALSE, detectDates = FALSE, skipEmptyRows = TRUE,
-                         skipEmptyCols = TRUE, rows = NULL, cols = NULL, check.names = FALSE,
-                         namedRegion = NULL, na.strings = "NA", fillMergedCells = FALSE)
-
-
-# Step 2: remove highly correlated descriptors (correlation greater than 0.95)
-tmp <- cor(QSARdata)
-tmp[!lower.tri(tmp)] <- 0
-QSARdata1 <- QSARdata[,!apply(tmp,2,function(x) any(x >= 0.95))]
-
-# Step 3: randomly split data into train set and test set
-# Set random seed to reproduce this splitting
-set.seed(199200)
-## 70% of the sample size
-split_size <- floor(0.70 * nrow(QSARdata1))
-
-in_rows <- sample(c(1:nrow(QSARdata1)), size = split_size, replace = FALSE)
-
-train <- QSARdata1[in_rows, ]
-test <- QSARdata1[-in_rows, ]
+#Load data and trained model
+load("www/PfmDmix1.Rdata")
+load("www/PfmDmix9.Rdata")
+load("www/RFDmix1.Rdata")
+load("www/RFDmix9.Rdata")
+load("www/DescMOPAC.Rdata")
 
 
-# Step 4:Training models
-RFmodel <- train(Imm ~ ., data = train, method = "rf", ntree = 100)
-
-# estimate variable importance
-importance <- varImp(RFmodel, scale=TRUE)
-
-# summarize importance
-print(importance)
-
-# plot importance
-plot(importance)
-
-
-# Step 6: make prediction on test set
-test$Imm.pred <- predict(RFmodel, test)
-train$Imm.pred <- predict(RFmodel, train)
-observed.train <- train$Imm
-predicted.train <- train$Imm.pred
-observed.test <- test$Imm
-predicted.test <- test$Imm.pred
-R2train <- 1 - (sum((observed.train-predicted.train)^2)/sum((observed.train-mean(observed.train))^2))
-RMSEtrain <- RMSE(predicted.train,observed.train)
-R2test <- 1 - (sum((observed.test-predicted.test)^2)/sum((observed.test-mean(observed.test))^2))
-RMSEtest <- RMSE(predicted.test,observed.test)
-legend1 <- paste("R2_train = ", round(R2train, digits = 3), "; ", "R2_test = ", round(R2test, digits = 3), "; ", "RMSE_train = ", round(RMSEtrain, digits = 2), "; ", "RMSE_test = ", round(RMSEtest, digits = 2), sep = "")
-
-
-#Summary RF model
-RFmodel$finalModel
-RFmodel$results
-
-
-
-# Step: make graphical user interface app 
-# ui.R
-ui <- fluidPage(theme = shinytheme("cerulean"),
-                titlePanel("QSAR for predicting toxicity of TiO2 based nano-mixtures to Daphnia magna"),
-                sliderInput(inputId = "CSize", label = "Core size (nm) of TiO2 nanoparticles:", 
-                            value = 25, min = 6, max = 100),
-                sliderInput(inputId = "HSize", label = "Hydrodynamic size (nm) of TiO2 nanoparticles:", 
-                            value = 80, min = 6, max = 600), 
-                sliderInput(inputId = "ZetaPotential", label = "Zeta Potential (mV) of TiO2 nanoparticles:", 
-                            value = -5, min = -20, max = -1),
-                sliderInput(inputId = "SurfaceArea", label = "Surface Area (m2/g) of TiO2 nanoparticles:", 
-                            value = 100, min = 10, max = 250), 
-                sliderInput(inputId = "C1", label = "Concentration (mg/L) of TiO2 nanoparticles:", 
-                            value = 5, min = 0.001, max = 300), 
-                selectInput(inputId = "mixchem", "Mixed chemicals:",
-                            c("AgNO3" = "AgNO3",
-                              "Cd(NO3)2" = "Cd(NO3)2",
-                              "CdCl2" = "CdCl2",
-                              "Cu(NO3)2" = "Cu(NO3)2",
-                              "CuSO4" = "CuSO4",
-                              "Na2HAsO4" = "Na2HAsO4",
-                              "Pentabromodiphenyl ether" = "Pentabromodiphenyl-ether",
-                              "Pirimicarb" = "Pirimicarb",
-                              "TritonX-100" = "TritonX-100",
-                              "ZnCl2" = "ZnCl2")),
-                sliderInput(inputId = "C2", label = "Concentration (mg/L) of the mixed chemical:", 
-                            value = 2, min = 0.001, max = 10),
-                sliderInput(inputId = "ETime", label = "Exposure time (h):", 
-                            value = 24, min = 1, max = 96),
-                sliderInput(inputId = "Endpoint", label = "Expected toxicity - Immobilization (%):", 
-                            value = 50, min = 0, max = 100), 
-                tableOutput("userdata"),
-                plotOutput("modellinearity"),
-                plotOutput("descriptorimportance")
+ui <- dashboardPage(skin = "black",
+  dashboardHeader(title = "QSAR for TiO2 based nano-mixtures", titleWidth = 300),
+  dashboardSidebar(
+    width = 300,
+    sidebarMenu(
+      menuItem("Model TiO2 Daphnia magna", tabName = "Model4", icon = icon("desktop"))
+      )
+  ),
+  dashboardBody(
+      # Model 4 tab content
+      tabItem(tabName = "Model4",
+              # Summary of model
+              column(
+                width = 12,
+                p(strong("Predicting accute totoxicity of TiO2-based nano-mixtures to",em("Daphnia magna")),
+                  style="font-size:30px;
+                          text-align:justify;
+                          color:black;
+                          background-color:papayawhip;
+                          padding:15px;
+                          border-radius:10px"),
+                p(strong("Author:"), "Tung X. Trinh, Tae Hyun Yoon and Jongwoon Kim*",
+                  style="font-size:16px;
+                          text-align:justify;
+                          color:black;
+                          background-color:white;
+                          padding:15px;
+                          border-radius:10px"),
+                p(strong("Summary of model:"), "This model predicts immobilization (%) of ", em("Daphnia magna"), "exposed to binary mixtures of TiO2 oxide (MeOx) nanoparticles and a mixed chemical
+                (i.e., Pirimicarb, Triton X-100, ZnCl2, AgNO3, Cd(NO3)2, CdCl2, Cu(NO3)2, CuSO4, Na2HAsO4 and Pentabromodiphenyl Ether). 
+                  When users input data by choosing values of parameters in the left panel (Model input), 
+                  the model will predict immobilization value and show in the right panel (Model output). 
+                  Higher immobilization value means higher toxicity to" , em("Daphnia magna."),
+                  "The model based on random forest algorithm which was built by using package \"caret\" in R.
+                  ",
+                  style="font-size:16px;
+                          text-align:justify;
+                          color:black;
+                          background-color:white;
+                          padding:15px;
+                          border-radius:10px")
+              ),
+              
+              
+              # Model input and output
+              fluidRow(
+                # Model input
+                box(
+                  width = 6,
+                  height = 1300,
+                  title = p(strong("Model input:"),
+                            style="font-size:24px;
+                          text-align:justify;
+                          color:black;
+                          background-color:papayawhip;
+                          padding:15px;
+                          border-radius:10px"),
+                  p(strong("User input data:"),
+                    style="font-size:20px;
+                          text-align:justify;
+                          color:black;
+                          background-color:white;
+                          padding:15px;
+                          border-radius:10px"),
+                  selectInput(inputId = "MeOx", "Metal oxide NPs:",
+                              c("NanoTiO2" = "NanoTiO2")),
+                  sliderInput(inputId = "CSize", label = "Core size (nm) of TiO2 nanoparticles:", 
+                              value = 25, min = 5, max = 100, step = 0.1),
+                  sliderInput(inputId = "HSize", label = "Hydrodynamic size (nm) of TiO2 nanoparticles:", 
+                              value = 100, min = 10, max = 1000, step = 0.1),
+                  sliderInput(inputId = "Zeta", label = "Zeta potential (mV) of TiO2 nanoparticles:", 
+                              value = -5, min = -20, max = 0, step = 0.1),
+                  selectInput(inputId = "mixchem", "Mixed chemicals:",
+                              c("Pirimicarb" = "Pirimicarb",
+                                "TritonX100" = "TritonX100",
+                                "ZnCl2" = "ZnCl2",
+                                "AgNO3" = "AgNO3",
+                                "Cd(NO3)2" = "CdN2O6",
+                                "CdCl2" = "CdCl2",
+                                "Cu(NO3)2" = "CuN2O6",
+                                "CuSO4" = "CuSO4",
+                                "Na2HAsO4" = "Na2HAsO4",
+                                "Pentabromodiphenyl Ether" = "Pentabromodiphenylether"
+                                )),
+                  sliderInput(inputId = "C1", label = "Concentration (ug/L) of TiO2 nanoparticles:", 
+                              value = 100, min = 0.1, max = 10000, step = 1), 
+                  sliderInput(inputId = "C2", label = "Concentration (ug/L) of the mixed chemical:", 
+                              value = 10, min = 0.1, max = 300, step = 1),
+                  sliderInput(inputId = "ETime", label = "Exposure time (h):", 
+                              value = 48, min = 1, max = 96),
+                  sliderInput(inputId = "Endpoint", label = "Expected toxicity - Immobilization (%):", 
+                              value = 10, min = 0, max = 100), 
+                  p(strong("Summary of input data:"),
+                    style="font-size:16px;
+                          text-align:justify;
+                          color:black;
+                          background-color:white;
+                          padding:15px;
+                          border-radius:10px"),
+                  tableOutput("TiO2datainput")
+                ),
+                # Model output
+                box(
+                  width = 6,
+                  height = 1300,
+                  title = p(strong("Model output:"),
+                            style="font-size:24px;
+                          text-align:justify;
+                          color:black;
+                          background-color:papayawhip;
+                          padding:15px;
+                          border-radius:10px"),
+                  
+                  p(strong("Predicted toxicity:"),
+                    style="font-size:20px;
+                          text-align:justify;
+                          color:black;
+                          background-color:white;
+                          padding:15px;
+                          border-radius:10px"),
+                  valueBoxOutput("Prediction", width = 12),
+                  
+                  column(tags$img(src="TiO2Dmagna.png",height="200px"),width=12),
+                  
+                  
+                  column(
+                    p(strong("Performance of the predictive model:"),
+                      style="font-size:16px;
+                          text-align:justify;
+                          color:black;
+                          background-color:white;
+                          padding:15px;
+                          border-radius:10px"),
+                  tableOutput("PerformanceDmix1"),width=12),
+                  
+                  
+                ),
                 
-)
+                column(
+                  br(),
+                  p( strong("Acknowledgement:"),"This work was funded by the Korea Research Institute of Chemical Technology (KRICT) through the Development of Chemical Safety Platform Technologies (Project No. KK2052-10). J. Kim and T.H. Yoon acknowledge the support from the European Union's Horizon 2020 research and innovation program (SABYDOMA Project under Grant Agreement No. 862296).", style="font-size:16px;text-align:justify;color:black;background-color:papayawhip;padding:15px;border-radius:10px"),
+                  width=12), 
+              )
+              
+      ),
+
+      
+    )
+  )

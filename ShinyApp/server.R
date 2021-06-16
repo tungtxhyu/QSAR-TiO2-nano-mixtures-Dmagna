@@ -1,163 +1,94 @@
-# Install below packages in the first time you run this code
-#install.packages(c("openxlsx","svDialogs","data.table","mlbench","caret", "shiny", "shinydashboard"), dependencies = TRUE)
+#############################################
+# Install packages if they are not installed yet
+# ipak function: install and load multiple R packages.
+# check to see if packages are installed. Install them if they are not, then load them into the R session.
+#ipak <- function(pkg){
+#  new.pkg <- pkg[!(pkg %in% installed.packages()[, "Package"])]
+#  if (length(new.pkg)) 
+#    install.packages(new.pkg, dependencies = TRUE)
+#  sapply(pkg, require, character.only = TRUE)
+#}
+#packages <- c("caret", "randomForest", "data.table", "shiny", "shinythemes", "shinydashboard")
+#ipak(packages)
 
-library(shiny)
-library(svDialogs) 
+# Load library
+library(caret) 
+library(randomForest)
 library(data.table)
-library(openxlsx)
-library(mlbench)
-library(caret)
-library(tools)
 library(shiny)
 library(shinythemes)
-library(DT)
-library(ggplot2)
-library(car)
-library(nortest)
-library(tseries)
-library(RcmdrMisc)
-library(lmtest)
 library(shinydashboard)
-library(randomForest)
-# Step 1: Read excel data file 
-QSARdata <- read.xlsx("dataset/Dmix.xlsx", sheet = 1, startRow = 1, colNames = TRUE,
-                      rowNames = FALSE, detectDates = FALSE, skipEmptyRows = TRUE,
-                      skipEmptyCols = TRUE, rows = NULL, cols = NULL, check.names = FALSE,
-                      namedRegion = NULL, na.strings = "NA", fillMergedCells = FALSE)
-Descriptors <- read.xlsx("dataset/Descriptors.xlsx", sheet = 1, startRow = 1, colNames = TRUE,
-                         rowNames = FALSE, detectDates = FALSE, skipEmptyRows = TRUE,
-                         skipEmptyCols = TRUE, rows = NULL, cols = NULL, check.names = FALSE,
-                         namedRegion = NULL, na.strings = "NA", fillMergedCells = FALSE)
+#############################################
+
+#Load data and trained model
+load("www/PfmDmix1.Rdata")
+load("www/PfmDmix9.Rdata")
+load("www/RFDmix1.Rdata")
+load("www/RFDmix9.Rdata")
+load("www/DescMOPAC.Rdata")
 
 
-# Step 2: remove highly correlated descriptors (correlation greater than 0.95)
-tmp <- cor(QSARdata)
-tmp[!lower.tri(tmp)] <- 0
-QSARdata1 <- QSARdata[,!apply(tmp,2,function(x) any(x >= 0.95))]
-
-# Step 3: randomly split data into train set and test set
-# Set random seed to reproduce this splitting
-set.seed(199200)
-## 70% of the sample size
-split_size <- floor(0.70 * nrow(QSARdata1))
-
-in_rows <- sample(c(1:nrow(QSARdata1)), size = split_size, replace = FALSE)
-
-train <- QSARdata1[in_rows, ]
-test <- QSARdata1[-in_rows, ]
-
-
-# Step 4:Training models
-RFmodel <- train(Imm ~ ., data = train, method = "rf", ntree = 100)
-
-# estimate variable importance
-importance <- varImp(RFmodel, scale=TRUE)
-
-# summarize importance
-print(importance)
-
-# plot importance
-plot(importance)
-
-
-# Step 6: make prediction on test set
-test$Imm.pred <- predict(RFmodel, test)
-train$Imm.pred <- predict(RFmodel, train)
-observed.train <- train$Imm
-predicted.train <- train$Imm.pred
-observed.test <- test$Imm
-predicted.test <- test$Imm.pred
-R2train <- 1 - (sum((observed.train-predicted.train)^2)/sum((observed.train-mean(observed.train))^2))
-RMSEtrain <- RMSE(predicted.train,observed.train)
-R2test <- 1 - (sum((observed.test-predicted.test)^2)/sum((observed.test-mean(observed.test))^2))
-RMSEtest <- RMSE(predicted.test,observed.test)
-legend1 <- paste("R2_train = ", round(R2train, digits = 3), "; ", "R2_test = ", round(R2test, digits = 3), "; ", "RMSE_train = ", round(RMSEtrain, digits = 2), "; ", "RMSE_test = ", round(RMSEtest, digits = 2), sep = "")
-
-
-#Summary RF model
-RFmodel$finalModel
-RFmodel$results
-
-
-# server.R
 server <- function(input, output) {
-  output$userdata <- renderTable({
-    #make table of user input data
-    a <- which(apply(as.data.frame(Descriptors[,2]), 1, function(r) any(r %in% input$mixchem)))
-    Cmix <- input$C1 + input$C2
-    Mol1 <- input$C1/80/(input$C1/80+input$C2/Descriptors[a,14])
-    Mol2 <- 1-Mol1
-    table1 <- data.frame("CoreSize" = input$CSize,
-                         "HSize" = input$HSize,
-                         "ZetaPotential" = input$ZetaPotential,
-                         "SurfaceArea"   = input$SurfaceArea,
-                         "ExposureTime"  = input$ETime,
-                         "C1"            = input$C1,
-                         "C2"            = input$C2,
-                         "Mol1"          = Mol1,
-                         "Mol2"          = Mol2,
-                         "HOF9"          = sqrt(Mol1*abs(Descriptors[9,3])*Mol2*abs(Descriptors[a,3])),
-                         "CCR9"          = sqrt(Mol1*abs(Descriptors[9,6])*Mol2*abs(Descriptors[a,6])),
-                         "LUMO9"         = sqrt(Mol1*abs(Descriptors[9,11])*Mol2*abs(Descriptors[a,11])),
-                         "PPAH9"         = sqrt(Mol1*abs(Descriptors[9,13])*Mol2*abs(Descriptors[a,13])),
-                         "Imm"           = input$Endpoint)
-    
-    table2 <- data.frame("Imm.Predict" = predict(RFmodel, table1))
-    
-    table3 <- cbind(table1,table2)
-  })
-  output$modellinearity <- renderPlot({
-    #make table of user input data
-    a <- which(apply(as.data.frame(Descriptors[,2]), 1, function(r) any(r %in% input$mixchem)))
-    Cmix <- input$C1 + input$C2
-    Mol1 <- input$C1/80/(input$C1/80+input$C2/Descriptors[a,14])
-    Mol2 <- 1-Mol1
-    table1 <- data.frame("CoreSize" = input$CSize,
-                         "HSize" = input$HSize,
-                         "ZetaPotential" = input$ZetaPotential,
-                         "SurfaceArea"   = input$SurfaceArea,
-                         "ExposureTime"  = input$ETime,
-                         "C1"            = input$C1,
-                         "C2"            = input$C2,
-                         "Mol1"          = Mol1,
-                         "Mol2"          = Mol2,
-                         "HOF9"          = sqrt(Mol1*abs(Descriptors[9,3])*Mol2*abs(Descriptors[a,3])),
-                         "CCR9"          = sqrt(Mol1*abs(Descriptors[9,6])*Mol2*abs(Descriptors[a,6])),
-                         "LUMO9"         = sqrt(Mol1*abs(Descriptors[9,11])*Mol2*abs(Descriptors[a,11])),
-                         "PPAH9"         = sqrt(Mol1*abs(Descriptors[9,13])*Mol2*abs(Descriptors[a,13])),
-                         "Imm"           = input$Endpoint)
-    table2 <- data.frame("X" = input$Endpoint, "Y" = predict(RFmodel, table1))
-    #Draw plots for linearity
-    p1 <- ggplot(train, aes(x=Imm, y=Imm.pred)) + geom_point(aes(x=Imm, y=Imm.pred), color="red", alpha=1.0, size = 4, shape=1) +
-      theme_bw() +
-      xlab(expression(paste("Observed immobilization (%)"))) +
-      ylab(expression(paste("Predicted immobilization (%)"))) +
-      xlim(0,100) +
-      ylim(0,100) +
-      annotate("text", x = 50, y = 100, label = legend1) +
-      annotate("pointrange", x = 5, y = 90, ymin = 90, ymax = 90, colour = "red", size = 1.0, shape=1)+
-      annotate("pointrange", x = 5, y = 80, ymin = 80, ymax = 80, colour = "black", size = 1.0, shape=1)+
-      theme(axis.ticks = element_blank(),
-            axis.text = element_text(size=16),
-            axis.title = element_text(size=24),
-            axis.title.x = element_text(size=24),
-            axis.ticks.length = unit(0.0, "cm"),
-            legend.text=element_text(size=16),
-            legend.position="top",
-            legend.direction="horizontal",
-            legend.box = "vertical",
-            #legend.margin =margin(0,0,0,0),
-            plot.margin = unit(c(0.5, 0.5, 0.1, 0.1), "cm"),
-            panel.spacing = unit(c(0.01, 0.01, 0.01, 0.01), "cm")) 
-    p1 + geom_point(data=test, aes(x=Imm, y=Imm.pred), colour="black", alpha=1.0, size = 4, shape=1) +
-      annotate("text", x = 15, y = 90, label = "Train set") + 
-      annotate("text", x = 15, y = 80, label = "Test set") +
-      geom_line(data=data.frame("X"=c(0,100), "Y"=c(0,100)),aes(x=X, y=Y), colour="black", alpha=1.0) +
-      geom_point(data=table2, aes(x=X, y=Y), colour="blue", alpha=1.0, size = 10, shape=18)
-    
-  })
-  output$descriptorimportance <- renderPlot({
-    plot(importance)
+
+# Read performance table
+    output$PerformanceDmix1 <- renderTable({
+    data.frame("Parameter" =  c("R2 test","R2 cross validation","R2 train","RMSE test","RMSE cross validation","RMSE train","MAE test","MAE cross validation","MAE train"),
+               "Value" = c(PfmDmix1$R2_test[1],PfmDmix1$R2_CV[1],PfmDmix1$R2_train[1], PfmDmix1$RMSE_test[1],PfmDmix1$RMSE_CV[1],PfmDmix1$RMSE_train[1],PfmDmix1$MAE_test[1],PfmDmix1$MAE_CV[1],PfmDmix1$MAE_train[1]))
+  }, digits = 3)
+  
+  output$PerformanceDmix9 <- renderTable({
+    data.frame("Parameter" =  c("R2 test","R2 cross validation","R2 train","RMSE test","RMSE cross validation","RMSE train","MAE test","MAE cross validation","MAE train"),
+               "Value" = c(PfmDmix9$R2_test[1],PfmDmix9$R2_CV[1],PfmDmix9$R2_train[1], PfmDmix9$RMSE_test[1],PfmDmix9$RMSE_CV[1],PfmDmix9$RMSE_train[1],PfmDmix9$MAE_test[1],PfmDmix9$MAE_CV[1],PfmDmix9$MAE_train[1]))
+  }, digits = 3)
+  
+  #make table of user input data of TiO2 based nano-mixtures
+  output$TiO2datainput <- renderTable({
+    data.frame("Parameter" = c("MeOxNP",
+                           "TiO2 core diameter (nm)",
+                           "TiO2 concentration (ug/L)",
+                           "Mixed chemical",
+                           "Mixed chemical concentration (ug/L)",
+                           "Exposure time (h)"),
+               "Value" = c(input$MeOx,
+                           input$CSize,
+                           input$C1,
+                           input$mixchem,
+                           input$C2,
+                           input$ETime)
+               )
   })
   
+  
+  #make table of predicted data  
+  output$Prediction <- renderValueBox({
+    a <- which(apply(as.data.frame(DescMOPAC[,2]), 1, function(r) any(r %in% input$mixchem)))
+    Cmix <- input$C1 + input$C2
+    Mol1 <- input$C1/DescMOPAC[9,3]/(input$C1/DescMOPAC[9,3]+input$C2/DescMOPAC[a,3])
+    Mol2 <- 1-Mol1
+    table1 <- data.frame("CSize" = input$CSize,
+                         "HSize" = input$HSize,
+                         "Zeta" = input$Zeta,
+                         "SArea"   = 6/(4.23*10^6*input$CSize*10^-9),
+                         "ETime"  = input$ETime,
+                         "C1"     = input$C1,
+                         "C2"     = input$C2,
+                         "HOF1"= Mol1*DescMOPAC[9,4] + Mol2*DescMOPAC[a,4],
+                         "EE1"= Mol1*DescMOPAC[9,6] + Mol2*DescMOPAC[a,6],
+                         "IP1"= Mol1*DescMOPAC[9,10] + Mol2*DescMOPAC[a,10],
+                         "ME1"= Mol1*DescMOPAC[9,13] + Mol2*DescMOPAC[a,13],
+                         "Immobilization" = input$Endpoint)
+    Imm_TiO2Dmix <- predict(RFDmix1, table1)
+
+    color_TiO2Dmix <- fifelse(Imm_TiO2Dmix <= 30, "green", 
+                    fifelse(Imm_TiO2Dmix <= 50, "yellow",
+                        fifelse(Imm_TiO2Dmix <= 75, "red","red"))) 
+    icon_TiO2Dmix <- fifelse(Imm_TiO2Dmix <= 25, "fas fa-envira","exclamation-triangle")
+    title_TiO2Dmix <- paste(round(Imm_TiO2Dmix, digits = 1), " %", sep = "" )
+    subtitle_TiO2Dmix <- p("of ",em("Daphnia magna")," population might be immobilized")
+    
+    valueBox(title_TiO2Dmix, subtitle_TiO2Dmix, icon = icon(icon_TiO2Dmix), color = color_TiO2Dmix)
+  })
+  
+  
 }
+
