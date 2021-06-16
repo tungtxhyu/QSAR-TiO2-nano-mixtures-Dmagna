@@ -94,5 +94,5 @@ saveWorkbook(ExcelFile, paste(dirname(QSARFile),"/MLR_",tools::file_path_sans_ex
 
 
 # Save model for later use
-MLRDmix9 <- MLRmodel
-save(MLRDmix9, file = paste(dirname(QSARFile),"/MLR",tools::file_path_sans_ext(basename(QSARFile)),".Rdata", sep = ""))
+MLRDmix <- MLRmodel
+save(MLRDmix, file = paste(dirname(QSARFile),"/MLR",tools::file_path_sans_ext(basename(QSARFile)),".Rdata", sep = ""))

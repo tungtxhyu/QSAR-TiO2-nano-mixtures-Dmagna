@@ -94,6 +94,6 @@ saveWorkbook(ExcelFile, paste(dirname(QSARFile),"/RF_",tools::file_path_sans_ext
 
 
 # Save model for later use
-RFDmix1 <- RFmodel
-save(RFDmix1, file = paste(dirname(QSARFile),"/RF",tools::file_path_sans_ext(basename(QSARFile)),".Rdata", sep = ""))
+RFDmix <- RFmodel
+save(RFDmix, file = paste(dirname(QSARFile),"/RF",tools::file_path_sans_ext(basename(QSARFile)),".Rdata", sep = ""))
 

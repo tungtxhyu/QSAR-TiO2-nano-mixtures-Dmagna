@@ -94,8 +94,8 @@ saveWorkbook(ExcelFile, paste(dirname(QSARFile),"/DT_",tools::file_path_sans_ext
 
 
 # Save model for later use
-DTDmix9 <- DTmodel
-save(DTDmix9, file = paste(dirname(QSARFile),"/DT",tools::file_path_sans_ext(basename(QSARFile)),".Rdata", sep = ""))
+DTDmix <- DTmodel
+save(DTDmix, file = paste(dirname(QSARFile),"/DT",tools::file_path_sans_ext(basename(QSARFile)),".Rdata", sep = ""))
 
 # Plot decision tree
 rpart.plot(DTmodel$finalModel)
