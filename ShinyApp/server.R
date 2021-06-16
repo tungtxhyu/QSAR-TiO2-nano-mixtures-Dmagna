@@ -107,7 +107,7 @@ server <- function(input, output) {
     color_TiO2Dmix <- fifelse(Imm_TiO2Dmix <= 30, "green", 
                     fifelse(Imm_TiO2Dmix <= 50, "yellow",
                         fifelse(Imm_TiO2Dmix <= 75, "red","red"))) 
-    icon_TiO2Dmix <- fifelse(Imm_TiO2Dmix <= 25, "fas fa-envira","exclamation-triangle")
+    icon_TiO2Dmix <- fifelse(Imm_TiO2Dmix <= 30, "fas fa-envira","exclamation-triangle")
     title_TiO2Dmix <- paste(round(Imm_TiO2Dmix, digits = 1), " %", sep = "" )
     subtitle_TiO2Dmix <- p("of ",em("Daphnia magna")," population might be immobilized")
     
