@@ -32,8 +32,13 @@ server <- function(input, output) {
 
 # Read performance table
     output$PerformanceDmix1 <- renderTable({
-    data.frame("Parameter" =  c("R2 test","R2 cross validation","R2 train","RMSE test","RMSE cross validation","RMSE train","MAE test","MAE cross validation","MAE train"),
-               "Value" = c(PfmDmix1$R2_test[1],PfmDmix1$R2_CV[1],PfmDmix1$R2_train[1], PfmDmix1$RMSE_test[1],PfmDmix1$RMSE_CV[1],PfmDmix1$RMSE_train[1],PfmDmix1$MAE_test[1],PfmDmix1$MAE_CV[1],PfmDmix1$MAE_train[1]))
+    if (input$MixtureDescriptor == "Additive") {
+            data.frame("Parameter" =  c("R2 test","R2 cross validation","R2 train","RMSE test","RMSE cross validation","RMSE train","MAE test","MAE cross validation","MAE train"),
+                        "Value" = c(PfmDmix1$R2_test[1],PfmDmix1$R2_CV[1],PfmDmix1$R2_train[1], PfmDmix1$RMSE_test[1],PfmDmix1$RMSE_CV[1],PfmDmix1$RMSE_train[1],PfmDmix1$MAE_test[1],PfmDmix1$MAE_CV[1],PfmDmix1$MAE_train[1]))
+    } else {
+            data.frame("Parameter" =  c("R2 test","R2 cross validation","R2 train","RMSE test","RMSE cross validation","RMSE train","MAE test","MAE cross validation","MAE train"),
+                       "Value" = c(PfmDmix9$R2_test[1],PfmDmix9$R2_CV[1],PfmDmix9$R2_train[1], PfmDmix9$RMSE_test[1],PfmDmix9$RMSE_CV[1],PfmDmix9$RMSE_train[1],PfmDmix9$MAE_test[1],PfmDmix9$MAE_CV[1],PfmDmix9$MAE_train[1]))    
+            }  
   }, digits = 3)
   
   output$PerformanceDmix9 <- renderTable({
@@ -65,19 +70,39 @@ server <- function(input, output) {
     Cmix <- input$C1 + input$C2
     Mol1 <- input$C1/DescMOPAC[9,3]/(input$C1/DescMOPAC[9,3]+input$C2/DescMOPAC[a,3])
     Mol2 <- 1-Mol1
-    table1 <- data.frame("CSize" = input$CSize,
-                         "HSize" = input$HSize,
-                         "Zeta" = input$Zeta,
-                         "SArea"   = 6/(4.23*10^6*input$CSize*10^-9),
-                         "ETime"  = input$ETime,
-                         "C1"     = input$C1,
-                         "C2"     = input$C2,
-                         "HOF1"= Mol1*DescMOPAC[9,4] + Mol2*DescMOPAC[a,4],
-                         "EE1"= Mol1*DescMOPAC[9,6] + Mol2*DescMOPAC[a,6],
-                         "IP1"= Mol1*DescMOPAC[9,10] + Mol2*DescMOPAC[a,10],
-                         "ME1"= Mol1*DescMOPAC[9,13] + Mol2*DescMOPAC[a,13],
-                         "Immobilization" = input$Endpoint)
-    Imm_TiO2Dmix <- predict(RFDmix1, table1)
+    if (input$MixtureDescriptor == "Additive") {
+            table1 <- data.frame("CSize"  = input$CSize,
+                                 "HSize"  = input$HSize,
+                                 "Zeta"   = input$Zeta,
+                                 "SArea"  = 6/(4.23*10^6*input$CSize*10^-9),
+                                 "ETime"  = input$ETime,
+                                 "C1"     = input$C1,
+                                 "C2"     = input$C2,
+                                 "HOF1"= Mol1*DescMOPAC[9,4] + Mol2*DescMOPAC[a,4],
+                                 "EE1" = Mol1*DescMOPAC[9,6] + Mol2*DescMOPAC[a,6],
+                                 "IP1" = Mol1*DescMOPAC[9,10] + Mol2*DescMOPAC[a,10],
+                                 "ME1" = Mol1*DescMOPAC[9,13] + Mol2*DescMOPAC[a,13],
+                                 "Immobilization" = input$Endpoint)
+    } else {
+            table1 <- data.frame("CSize"  = input$CSize,
+                                 "HSize"  = input$HSize,
+                                 "Zeta"   = input$Zeta,
+                                 "SArea"  = 6/(4.23*10^6*input$CSize*10^-9),
+                                 "ETime"  = input$ETime,
+                                 "C1"     = input$C1,
+                                 "C2"     = input$C2,
+                                 "HOF9"= sqrt(Mol1*abs(DescMOPAC[9,4]) * Mol2*abs(DescMOPAC[a,4])),
+                                 "EE9" = sqrt(Mol1*abs(DescMOPAC[9,6]) * Mol2*abs(DescMOPAC[a,6])),
+                                 "IP9" = sqrt(Mol1*abs(DescMOPAC[9,10]) * Mol2*abs(DescMOPAC[a,10])),
+                                 "ME9" = sqrt(Mol1*abs(DescMOPAC[9,13]) * Mol2*abs(DescMOPAC[a,13])),
+                                 "Immobilization" = input$Endpoint)
+          }
+    
+    if (input$MixtureDescriptor == "Additive") {
+        Imm_TiO2Dmix <- predict(RFDmix1, table1)
+    } else {
+          Imm_TiO2Dmix <- predict(RFDmix9, table1)
+            }
 
     color_TiO2Dmix <- fifelse(Imm_TiO2Dmix <= 30, "green", 
                     fifelse(Imm_TiO2Dmix <= 50, "yellow",
@@ -87,6 +112,17 @@ server <- function(input, output) {
     subtitle_TiO2Dmix <- p("of ",em("Daphnia magna")," population might be immobilized")
     
     valueBox(title_TiO2Dmix, subtitle_TiO2Dmix, icon = icon(icon_TiO2Dmix), color = color_TiO2Dmix)
+
+  })
+  
+  
+  # Make Dmix formula show up in the output panel
+  output$Dmixform <- renderUI({
+    if (input$MixtureDescriptor == "Additive") {
+      withMathJax("$$\\text{}D_{mix} = x_1 \\times{} D_1 + x_2  \\times{} D_2$$")
+    } else {
+        withMathJax("$$\\text{}D_{mix} = \\sqrt{(x_1 \\times{} D_1 \\times{} x_2  \\times{} D_2)} $$")
+          }
   })
   
   

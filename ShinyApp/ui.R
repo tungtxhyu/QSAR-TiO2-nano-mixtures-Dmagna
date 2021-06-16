@@ -101,7 +101,7 @@ ui <- dashboardPage(skin = "black",
                   sliderInput(inputId = "HSize", label = "Hydrodynamic size (nm) of TiO2 nanoparticles:", 
                               value = 100, min = 10, max = 1000, step = 0.1),
                   sliderInput(inputId = "Zeta", label = "Zeta potential (mV) of TiO2 nanoparticles:", 
-                              value = -5, min = -20, max = 0, step = 0.1),
+                              value = -15, min = -20, max = 0, step = 0.1),
                   selectInput(inputId = "mixchem", "Mixed chemicals:",
                               c("Pirimicarb" = "Pirimicarb",
                                 "TritonX100" = "TritonX100",
@@ -117,7 +117,7 @@ ui <- dashboardPage(skin = "black",
                   sliderInput(inputId = "C1", label = "Concentration (ug/L) of TiO2 nanoparticles:", 
                               value = 100, min = 0.1, max = 10000, step = 1), 
                   sliderInput(inputId = "C2", label = "Concentration (ug/L) of the mixed chemical:", 
-                              value = 10, min = 0.1, max = 300, step = 1),
+                              value = 5, min = 0.1, max = 300, step = 1),
                   sliderInput(inputId = "ETime", label = "Exposure time (h):", 
                               value = 48, min = 1, max = 96),
                   sliderInput(inputId = "Endpoint", label = "Expected toxicity - Immobilization (%):", 
@@ -154,15 +154,32 @@ ui <- dashboardPage(skin = "black",
                   
                   column(tags$img(src="TiO2Dmagna.png",height="200px"),width=12),
                   
+                  selectInput(inputId = "MixtureDescriptor", "Type of mixture descriptors",
+                              c("Additive" = "Additive",
+                                "None Additive" = "Non_Additive"
+                              )),
+                  #headerPanel(withMathJax("$$\\text{Display formula in heading }X_n=X_{n-1}-\\varepsilon$$")),
                   
                   column(
-                    p(strong("Performance of the predictive model:"),
+                    p(strong("Mixture descriptor formula: "),
                       style="font-size:16px;
                           text-align:justify;
                           color:black;
                           background-color:white;
                           padding:15px;
                           border-radius:10px"),
+                    uiOutput("Dmixform"),
+                    width=12),
+                  
+                  column(
+                    p(strong("Performance of the predictive model: "),
+                      style="font-size:16px;
+                          text-align:justify;
+                          color:black;
+                          background-color:white;
+                          padding:15px;
+                          border-radius:10px"),
+                    
                   tableOutput("PerformanceDmix1"),width=12),
                   
                   
