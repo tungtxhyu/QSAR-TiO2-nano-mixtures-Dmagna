@@ -43,12 +43,12 @@ test <- Table2[-in_rows, ]
 
 # Training models
 train.control <- trainControl(method = "repeatedcv", number = 5, repeats = 5)
-RFmodel <- train(Immobilization ~ ., data = train, method = "rf", ntree = 100, trControl = train.control); print(RFmodel)
+RFmodel <- train(Immobilization ~ ., data = train, method = "rf", maxdepth = 10, ntree = 100, trControl = train.control); print(RFmodel)
 
 # Cross validation
 train.control <- trainControl(method = "repeatedcv", number = 5, repeats = 10)
 trainCV <- Table2
-RFmodelCV <- train(Immobilization ~ ., data = trainCV, method = "rf", ntree = 100, trControl = train.control); print(RFmodelCV)
+RFmodelCV <- train(Immobilization ~ ., data = trainCV, method = "rf", maxdepth = 10, ntree = 100, trControl = train.control); print(RFmodelCV)
 CV <- RFmodelCV$results
 
 # Make prediction on test set 
