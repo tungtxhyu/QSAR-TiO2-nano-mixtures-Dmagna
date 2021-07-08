@@ -44,7 +44,7 @@ ui <- dashboardPage(skin = "black",
               # Summary of model
               column(
                 width = 12,
-                p(strong("Predicting accute totoxicity of TiO2-based nano-mixtures to",em("Daphnia magna")),
+                p(strong("Predicting accute toxicity of TiO2-based nano-mixtures to",em("Daphnia magna")),
                   style="font-size:30px;
                           text-align:justify;
                           color:black;
